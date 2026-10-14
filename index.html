@@ -62,8 +62,7 @@ input:focus,select:focus{outline:2px solid #86bd93;border-color:#166534}
 <div class="calendar-head"><button class="secondary" id="prevMonth" aria-label="이전 달">‹</button><h2 id="calendarTitle" style="margin:0">근무 캘린더</h2><button class="secondary" id="nextMonth" aria-label="다음 달">›</button></div>
 <div class="legend"><span><i class="swatch overtime"></i>잔업</span><span><i class="swatch special"></i>특근</span><span><i class="swatch night"></i>야간</span></div>
 <div id="calendar" class="calendar-grid"></div>
-<p class="hint">날짜를 누르면 해당 날짜에 메모를 남기거나 근무 기록을 추가할 수 있습니다. 근무 기록이 없어도 메모만 저장할 수 있습니다.</p>
-<div class="panel" style="background:#f8fbf8;margin-top:12px;margin-bottom:12px"><h3 id="memoDateTitle">날짜 메모</h3><div class="field"><label for="calendarMemo">메모 (예: 휴가, 병원, 급여 관련 사항)</label><textarea id="calendarMemo" rows="3" maxlength="300" placeholder="선택한 날짜에 남길 메모를 입력하세요."></textarea></div><div class="actions"><button id="saveMemo">메모 저장</button><button class="secondary" id="deleteMemo">메모 삭제</button></div></div>
+<p class="hint">날짜를 누르면 해당 날짜로 근무 기록을 추가할 수 있습니다. 여러 종류의 근무는 색상별로 표시됩니다.</p>
 <div class="actions"><button id="addSelectedDay">선택한 날짜에 근무 추가</button></div>
 </div>
 <div class="panel"><div class="row"><h2>급여 기간 기록</h2><span id="recordCount" class="hint">0건</span></div><div id="homeRecords" class="records"></div></div>
@@ -84,9 +83,9 @@ input:focus,select:focus{outline:2px solid #86bd93;border-color:#166534}
 </section>
 <section id="settings" class="tab hidden">
 <div class="panel"><h2>급여 계산 설정</h2><form id="settingsForm" class="grid">
-<div class="field full"><label for="monthly">월 기본급 (원)</label><input id="monthly" type="number" min="0" step="1000" required></div>
-<div class="field"><label for="positionAllowance">월 직책수당 (원)</label><input id="positionAllowance" type="number" min="0" step="1000" value="0"></div>
-<div class="field"><label for="qualificationAllowance">월 자격수당 (원)</label><input id="qualificationAllowance" type="number" min="0" step="1000" value="0"></div>
+<div class="field full"><label for="monthly">월 기본급 (원)</label><input id="monthly" type="number" min="0" step="0.01" required></div>
+<div class="field"><label for="positionAllowance">월 직책수당 (원)</label><input id="positionAllowance" type="number" min="0" step="0.01" value="0"></div>
+<div class="field"><label for="qualificationAllowance">월 자격수당 (원)</label><input id="qualificationAllowance" type="number" min="0" step="0.01" value="0"></div>
 <div class="field full"><label><input id="positionIncluded" type="checkbox" checked> 직책수당을 통상임금 계산에 포함</label></div>
 <div class="field full"><label><input id="qualificationIncluded" type="checkbox" checked> 자격수당을 통상임금 계산에 포함</label></div>
 <div class="field full"><p class="hint">수당의 통상임금 포함 여부는 실제 지급 조건과 관련 법령에 따라 달라질 수 있습니다. 회사 임금명세서·규정을 확인해 설정하세요.</p></div>
@@ -94,7 +93,7 @@ input:focus,select:focus{outline:2px solid #86bd93;border-color:#166534}
 <option value="1">매월 1일 ~ 말일</option><option value="5">매월 5일 ~ 다음 달 4일</option><option value="10">매월 10일 ~ 다음 달 9일</option><option value="15">매월 15일 ~ 다음 달 14일</option><option value="20">매월 20일 ~ 다음 달 19일</option><option value="21">매월 21일 ~ 다음 달 20일</option><option value="25">매월 25일 ~ 다음 달 24일</option>
 </select></div>
 <div class="field"><label for="monthlyHours">월 환산 기준 시간</label><input id="monthlyHours" type="number" min="1" step="1" required></div>
-<div class="field"><label for="baseRate">계산 기준 시급 (원)</label><input id="baseRate" type="number" min="0" step="10" placeholder="비우면 통상임금 ÷ 기준 시간"></div>
+<div class="field"><label for="baseRate">계산 기준 시급 (원)</label><input id="baseRate" type="number" min="0" step="0.01" placeholder="비우면 통상임금 ÷ 기준 시간"></div>
 <div class="field"><label for="defaultOver">잔업 기본 가산율 (%)</label><input id="defaultOver" type="number" min="0" max="500" step="5" required></div>
 <div class="field"><label for="defaultSpecial">특근 기본 가산율 (%)</label><input id="defaultSpecial" type="number" min="0" max="500" step="5" required></div>
 <div class="field"><label for="defaultNight">야간 기본 가산율 (%)</label><input id="defaultNight" type="number" min="0" max="500" step="5" required></div>
@@ -115,12 +114,11 @@ input:focus,select:focus{outline:2px solid #86bd93;border-color:#166534}
 const $=id=>document.getElementById(id);
 const today=new Date(); const monthNow=()=>`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}`;
 const dateNow=()=>`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
-const fmt=n=>'₩'+Math.round(Number(n)||0).toLocaleString('ko-KR');
-const defaultState={settings:{monthly:2500000,positionAllowance:0,qualificationAllowance:0,positionIncluded:true,qualificationIncluded:true,monthlyHours:209,baseRate:0,cycleStart:1,defaultOver:50,defaultSpecial:50,defaultNight:50},records:[],memos:{}};
+const fmt=n=>'₩'+(Number(n)||0).toLocaleString('ko-KR',{minimumFractionDigits:0,maximumFractionDigits:2});
+const defaultState={settings:{monthly:2500000,positionAllowance:0,qualificationAllowance:0,positionIncluded:true,qualificationIncluded:true,monthlyHours:209,baseRate:0,cycleStart:1,defaultOver:50,defaultSpecial:50,defaultNight:50},records:[]};
 let state;
 let selectedDate=dateNow();
 try{state=JSON.parse(localStorage.getItem('payroll-pwa-state'))||structuredClone(defaultState)}catch(e){state=JSON.parse(JSON.stringify(defaultState))}
-if(!state.memos)state.memos={};
 function save(){localStorage.setItem('payroll-pwa-state',JSON.stringify(state));render()}
 function regularWageMonthly(){const s=state.settings;return Number(s.monthly||0)+(s.positionIncluded?Number(s.positionAllowance||0):0)+(s.qualificationIncluded?Number(s.qualificationAllowance||0):0)}
 function getRate(){const s=state.settings;return Number(s.baseRate)>0?Number(s.baseRate):regularWageMonthly()/Math.max(1,Number(s.monthlyHours))}
@@ -162,16 +160,11 @@ function renderCalendar(month){
    const types=['overtime','special','night'];
    const marks=types.map(t=>{const list=entries.filter(r=>r.type===t);return list.length?`<div class="dotline ${t}">${({overtime:'잔업',special:'특근',night:'야간'})[t]} ${list.reduce((a,r)=>a+Number(r.hours),0)}h</div>`:''}).join('');
    const total=entries.reduce((a,r)=>a+moneyFor(r),0);
-   const memo=state.memos[iso]||'';
-   out+=`<button class="day ${outside?'outside':''} ${iso===selectedDate?'selected':''} ${iso===dateNow()?'today':''}" data-date="${iso}" aria-label="${iso} 근무 기록 및 메모"><span class="num">${day}</span>${marks}${entries.length?`<span class="sum">${fmt(total)}</span>`:''}${memo?`<div class="dotline" style="background:#e8defc;color:#56349a">📝 ${esc(memo)}</div>`:''}</button>`;
+   out+=`<button class="day ${outside?'outside':''} ${iso===selectedDate?'selected':''} ${iso===dateNow()?'today':''}" data-date="${iso}" aria-label="${iso} 근무 기록"><span class="num">${day}</span>${marks}${entries.length?`<span class="sum">${fmt(total)}</span>`:''}</button>`;
  }
  $('calendar').innerHTML=out;
- $('calendar').querySelectorAll('[data-date]').forEach(b=>b.onclick=()=>{selectedDate=b.dataset.date;$('date').value=selectedDate;renderCalendar(month);$('addSelectedDay').textContent=selectedDate+' 근무 추가';loadMemoEditor()});
- loadMemoEditor();
+ $('calendar').querySelectorAll('[data-date]').forEach(b=>b.onclick=()=>{selectedDate=b.dataset.date;$('date').value=selectedDate;renderCalendar(month);$('addSelectedDay').textContent=selectedDate+' 근무 추가'});
 }
-function loadMemoEditor(){if(!$('calendarMemo'))return;$('memoDateTitle').textContent=selectedDate+' 날짜 메모';$('calendarMemo').value=state.memos[selectedDate]||''}
-$('saveMemo').onclick=()=>{const value=$('calendarMemo').value.trim();if(value)state.memos[selectedDate]=value;else delete state.memos[selectedDate];save();alert(value?'메모를 저장했습니다.':'빈 메모를 삭제했습니다.')};
-$('deleteMemo').onclick=()=>{if(state.memos[selectedDate]&&confirm(selectedDate+' 메모를 삭제할까요?')){delete state.memos[selectedDate];$('calendarMemo').value='';save();alert('메모를 삭제했습니다.')}};
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function setTab(tab){document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('hidden',x.id!==tab));document.querySelectorAll('[data-tab]').forEach(x=>x.classList.toggle('active',x.dataset.tab===tab));window.scrollTo(0,0)}
 document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>setTab(b.dataset.tab));
@@ -188,7 +181,7 @@ window.deleteRecord=id=>{if(confirm('이 기록을 삭제할까요?')){state.rec
 $('exportBtn').onclick=()=>download('payroll-backup-'+dateNow()+'.json',JSON.stringify(state,null,2),'application/json');
 $('csvBtn').onclick=()=>{const rows=[['날짜','근무종류','시간','가산율(%)','추가수당(원)','메모'],...state.records.map(r=>[r.date,({overtime:'평일 잔업',special:'특근',night:'야간근무'})[r.type],r.hours,r.rate,Math.round(moneyFor(r)),r.note||''])];download('payroll-records-'+dateNow()+'.csv','\uFEFF'+rows.map(row=>row.map(x=>'"'+String(x).replace(/"/g,'""')+'"').join(',')).join('\r\n'),'text/csv;charset=utf-8')};
 function download(name,content,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
-$('importFile').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const x=JSON.parse(await f.text());if(!x.settings||!Array.isArray(x.records))throw Error();if(!x.memos)x.memos={};if(confirm('현재 설정과 기록을 백업 파일 내용으로 교체할까요?')){state=x;save();fillSettings();setFormDefaults();alert('복원했습니다.')}}catch(err){alert('올바른 백업 JSON 파일이 아닙니다.')}e.target.value=''};
+$('importFile').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const x=JSON.parse(await f.text());if(!x.settings||!Array.isArray(x.records))throw Error();if(confirm('현재 설정과 기록을 백업 파일 내용으로 교체할까요?')){state=x;save();fillSettings();setFormDefaults();alert('복원했습니다.')}}catch(err){alert('올바른 백업 JSON 파일이 아닙니다.')}e.target.value=''};
 $('clearBtn').onclick=()=>{if(confirm('모든 근무 기록과 설정을 초기화할까요? 이 작업은 되돌릴 수 없습니다.')){state=JSON.parse(JSON.stringify(defaultState));save();fillSettings();setFormDefaults()}};
 $('addSelectedDay').onclick=()=>{if(selectedDate)$('date').value=selectedDate;setTab('add')};
 $('prevMonth').onclick=()=>{const [y,m]=$('viewMonth').value.split('-').map(Number);const d=new Date(y,m-2,1);$('viewMonth').value=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;render()};
