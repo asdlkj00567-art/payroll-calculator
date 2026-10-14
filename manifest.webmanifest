@@ -1,0 +1,15 @@
+{
+  "id": "./",
+  "name": "내 월급 계산기",
+  "short_name": "월급 계산기",
+  "description": "잔업·특근·야간근무 기록 및 월급 계산",
+  "lang": "ko-KR",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f4f7f4",
+  "theme_color": "#14532d",
+  "icons": [
+    {"src":"icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}
+  ]
+}

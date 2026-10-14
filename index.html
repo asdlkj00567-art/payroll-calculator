@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#14532d">
+<meta name="description" content="휴대폰에 근무 기록을 저장하는 오프라인 월급 계산기">
+<link rel="manifest" href="manifest.webmanifest">
+<title>내 월급 계산기</title>
+<style>
+:root{font-family:system-ui,-apple-system,"Noto Sans KR",sans-serif;color:#17211b;background:#f4f7f4;font-synthesis:none}
+*{box-sizing:border-box}body{margin:0;padding:0 0 28px}header{background:#14532d;color:white;padding:22px 18px 18px;position:sticky;top:0;z-index:5;box-shadow:0 2px 8px #0001}
+h1{font-size:22px;margin:0 0 5px}header p{margin:0;font-size:13px;opacity:.88}.wrap{max-width:760px;margin:auto;padding:14px}
+nav{display:flex;gap:8px;overflow:auto;margin:0 0 14px}nav button{white-space:nowrap;flex:1}
+button,.button{border:0;border-radius:12px;background:#166534;color:white;padding:12px 14px;font:inherit;font-weight:650;cursor:pointer}
+button.secondary{background:#e1ebe3;color:#17452a}button.danger{background:#b42318;color:white}button:active{transform:scale(.99)}
+.panel{background:white;border:1px solid #e0e8e1;border-radius:16px;padding:16px;margin-bottom:13px;box-shadow:0 2px 7px #143d1b08}
+h2{font-size:17px;margin:0 0 13px}h3{font-size:15px;margin:0 0 8px}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.field{display:flex;flex-direction:column;gap:5px;min-width:0}.field.full{grid-column:1/-1}
+label{font-size:13px;color:#45534a;font-weight:600}input,select,textarea{width:100%;min-width:0;border:1px solid #cbd7cd;border-radius:10px;padding:11px;background:#fff;font:inherit;color:#17211b}
+input:focus,select:focus{outline:2px solid #86bd93;border-color:#166534}
+.summary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.metric{padding:13px;border-radius:12px;background:#edf5ee}.metric small{display:block;color:#496052;margin-bottom:6px}.metric strong{font-size:19px;overflow-wrap:anywhere}.metric.total{background:#14532d;color:white;grid-column:1/-1}.metric.total small{color:#d8eadc}.hint{font-size:12px;line-height:1.55;color:#5a685e}.row{display:flex;align-items:center;justify-content:space-between;gap:8px}.records{display:flex;flex-direction:column;gap:8px}.record{border:1px solid #e2e8e3;border-radius:12px;padding:12px;display:flex;gap:10px;justify-content:space-between;align-items:flex-start}.record .meta{font-size:12px;color:#5d6b61;margin-top:4px}.record .amount{font-weight:750;white-space:nowrap;text-align:right}.record .amount small{display:block;color:#657267;font-size:11px;font-weight:500}.empty{padding:20px;text-align:center;color:#718075;font-size:14px}.pill{font-size:11px;border-radius:20px;background:#e6f2e8;color:#17552b;padding:3px 8px;display:inline-block;margin-left:5px}.hidden{display:none!important}.actions{display:flex;gap:8px;flex-wrap:wrap}.actions button{flex:1}.tabs button.active{background:#14532d;color:white}.tabs button:not(.active){background:#e1ebe3;color:#17452a}.footer{text-align:center;color:#68776c;font-size:11px;padding:12px}
+
+.calendar-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px}
+.calendar-head button{padding:8px 12px}
+.calendar-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
+.calendar-grid .weekday{text-align:center;color:#617065;font-size:12px;padding:6px 0;font-weight:700}
+.day{min-height:72px;padding:5px 4px;border:1px solid #e0e8e1;border-radius:9px;background:#fff;color:#17211b;text-align:left;display:flex;flex-direction:column;gap:4px;min-width:0}
+.day .num{font-size:12px;font-weight:700}
+.day .dotline{font-size:10px;line-height:1.25;border-radius:4px;padding:2px 3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.day .sum{font-size:10px;color:#425448;margin-top:auto}
+.day.outside{opacity:.38;background:#f4f6f4}
+.day.selected{outline:2px solid #14532d;outline-offset:0}
+.day.today .num{text-decoration:underline;text-decoration-thickness:2px}
+.dotline.overtime{background:#dbeafe;color:#1d4ed8}
+.dotline.special{background:#ffedd5;color:#9a3412}
+.dotline.night{background:#ede9fe;color:#6d28d9}
+.legend{display:flex;gap:10px;flex-wrap:wrap;font-size:12px;color:#536157;margin:8px 0 12px}
+.legend span{display:flex;align-items:center;gap:5px}.swatch{width:10px;height:10px;border-radius:3px;display:inline-block}
+.swatch.overtime{background:#60a5fa}.swatch.special{background:#fb923c}.swatch.night{background:#a78bfa}
+@media(max-width:420px){.day{min-height:62px;padding:4px 2px}.day .dotline{font-size:9px}.day .sum{font-size:9px}.calendar-grid{gap:3px}}
+
+@media(min-width:600px){.summary{grid-template-columns:repeat(4,minmax(0,1fr))}.metric.total{grid-column:auto}.grid.three{grid-template-columns:repeat(3,minmax(0,1fr))}}
+</style>
+</head>
+<body>
+<header><h1>내 월급 계산기</h1><p>잔업 · 특근 · 야간근무 기록 | 휴대폰 저장 · 오프라인 지원</p></header>
+<main class="wrap">
+<nav class="tabs">
+<button class="active" data-tab="home">월급 요약</button><button data-tab="add">근무 기록 추가</button><button data-tab="settings">급여 설정</button><button data-tab="backup">백업·관리</button>
+</nav>
+<section id="home" class="tab">
+<div class="panel"><div class="row"><h2 id="monthTitle">이번 달 급여</h2><input id="viewMonth" type="month" style="max-width:165px" aria-label="조회 월"></div>
+<p id="periodHint" class="hint"></p><div class="summary">
+<div class="metric total"><small>예상 세전 급여</small><strong id="totalPay">₩0</strong></div>
+<div class="metric"><small>월 기본급</small><strong id="basePay">₩0</strong></div>
+<div class="metric"><small>잔업 수당</small><strong id="overPay">₩0</strong></div>
+<div class="metric"><small>특근 수당</small><strong id="specialPay">₩0</strong></div>
+<div class="metric"><small>야간 수당</small><strong id="nightPay">₩0</strong></div>
+</div><p class="hint">예상액입니다. 실제 지급액은 회사의 임금 규정, 통상임금, 가산율, 세금·공제에 따라 달라질 수 있습니다.</p></div>
+<div class="panel">
+<div class="calendar-head"><button class="secondary" id="prevMonth" aria-label="이전 달">‹</button><h2 id="calendarTitle" style="margin:0">근무 캘린더</h2><button class="secondary" id="nextMonth" aria-label="다음 달">›</button></div>
+<div class="legend"><span><i class="swatch overtime"></i>잔업</span><span><i class="swatch special"></i>특근</span><span><i class="swatch night"></i>야간</span></div>
+<div id="calendar" class="calendar-grid"></div>
+<p class="hint">날짜를 누르면 해당 날짜로 근무 기록을 추가할 수 있습니다. 여러 종류의 근무는 색상별로 표시됩니다.</p>
+<div class="actions"><button id="addSelectedDay">선택한 날짜에 근무 추가</button></div>
+</div>
+<div class="panel"><div class="row"><h2>급여 기간 기록</h2><span id="recordCount" class="hint">0건</span></div><div id="homeRecords" class="records"></div></div>
+</section>
+<section id="add" class="tab hidden">
+<div class="panel"><h2>근무 기록 추가</h2>
+<form id="recordForm" class="grid">
+<div class="field"><label for="date">날짜</label><input id="date" type="date" required></div>
+<div class="field"><label for="type">근무 종류</label><select id="type"><option value="overtime">평일 잔업</option><option value="special">특근</option><option value="night">야간근무</option></select></div>
+<div class="field"><label for="hours">시간 (시간 단위)</label><input id="hours" type="number" min="0.25" max="24" step="0.25" placeholder="예: 2.5" required></div>
+<div class="field"><label for="rate">수당 가산율 (%)</label><input id="rate" type="number" min="0" max="500" step="5" required></div>
+<div class="field full"><label for="note">메모 (선택)</label><input id="note" maxlength="100" placeholder="예: 토요일 근무, 생산 지원"></div>
+<div class="field full"><button type="submit">기록 저장</button></div>
+</form>
+<p class="hint">가산율은 기본 시급에 추가되는 비율입니다. 예를 들어 50% 가산은 50을 입력합니다. 잔업·특근·야간 가산이 중복 적용되는 회사라면 회사 규정에 맞춰 각각 입력하세요.</p>
+</div>
+<div class="panel"><h2>기록 수정 또는 삭제</h2><div id="allRecords" class="records"></div></div>
+</section>
+<section id="settings" class="tab hidden">
+<div class="panel"><h2>급여 계산 설정</h2><form id="settingsForm" class="grid">
+<div class="field full"><label for="monthly">월 기본급 (원)</label><input id="monthly" type="number" min="0" step="1000" required></div>
+<div class="field full"><label for="cycleStart">급여 기간 시작일 (매월 몇 일부터 계산할까요?)</label><select id="cycleStart">
+<option value="1">매월 1일 ~ 말일</option><option value="5">매월 5일 ~ 다음 달 4일</option><option value="10">매월 10일 ~ 다음 달 9일</option><option value="15">매월 15일 ~ 다음 달 14일</option><option value="20">매월 20일 ~ 다음 달 19일</option><option value="21">매월 21일 ~ 다음 달 20일</option><option value="25">매월 25일 ~ 다음 달 24일</option>
+</select></div>
+<div class="field"><label for="monthlyHours">월 환산 기준 시간</label><input id="monthlyHours" type="number" min="1" step="1" required></div>
+<div class="field"><label for="baseRate">계산 기준 시급 (원)</label><input id="baseRate" type="number" min="0" step="10" placeholder="비우면 기본급 ÷ 기준 시간"></div>
+<div class="field"><label for="defaultOver">잔업 기본 가산율 (%)</label><input id="defaultOver" type="number" min="0" max="500" step="5" required></div>
+<div class="field"><label for="defaultSpecial">특근 기본 가산율 (%)</label><input id="defaultSpecial" type="number" min="0" max="500" step="5" required></div>
+<div class="field"><label for="defaultNight">야간 기본 가산율 (%)</label><input id="defaultNight" type="number" min="0" max="500" step="5" required></div>
+<div class="field full"><button type="submit">설정 저장</button></div>
+</form><p class="hint">수당 계산식: 기준 시급 × 근무시간 × 가산율. 예: 시급 10,000원, 2시간, 가산율 50%이면 추가 수당 10,000원입니다. 이 앱은 가산분만 계산하며 기본급에 이미 포함된 임금이나 중복 가산은 회사 규정에 맞춰 조정해야 합니다.</p></div>
+</section>
+<section id="backup" class="tab hidden">
+<div class="panel"><h2>데이터 백업 및 복원</h2><p class="hint">기록은 이 브라우저의 휴대폰 저장 공간에 보관됩니다. 브라우저 데이터 삭제, 앱 제거 또는 휴대폰 교체에 대비해 주기적으로 백업하세요.</p>
+<div class="actions"><button id="exportBtn">백업 파일 내려받기</button><button class="secondary" id="csvBtn">CSV 내보내기</button></div>
+<div class="field" style="margin-top:14px"><label for="importFile">백업 파일 복원 (JSON)</label><input id="importFile" type="file" accept=".json,application/json"></div>
+<div class="actions" style="margin-top:12px"><button class="danger" id="clearBtn">모든 기록 초기화</button></div>
+<p class="hint">CSV는 스프레드시트에서 열 수 있습니다. 백업 파일은 다른 기기에서 복원할 수 있습니다.</p></div>
+<div class="panel"><h2>오프라인 상태</h2><div id="onlineStatus">확인 중…</div><p class="hint">홈 화면 설치와 오프라인 실행을 위해서는 웹앱 파일을 HTTPS 주소에 한 번 게시한 뒤 접속해야 합니다. 파일을 직접 열면 서비스 워커가 동작하지 않을 수 있습니다.</p></div>
+</section>
+<div class="footer">내 월급 계산기 · 데이터는 기본적으로 이 기기 안에 저장됩니다.</div>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const today=new Date(); const monthNow=()=>`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}`;
+const dateNow=()=>`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+const fmt=n=>'₩'+Math.round(Number(n)||0).toLocaleString('ko-KR');
+const defaultState={settings:{monthly:2500000,monthlyHours:209,baseRate:0,cycleStart:1,defaultOver:50,defaultSpecial:50,defaultNight:50},records:[]};
+let state;
+let selectedDate=dateNow();
+try{state=JSON.parse(localStorage.getItem('payroll-pwa-state'))||structuredClone(defaultState)}catch(e){state=JSON.parse(JSON.stringify(defaultState))}
+function save(){localStorage.setItem('payroll-pwa-state',JSON.stringify(state));render()}
+function getRate(){const s=state.settings;return Number(s.baseRate)>0?Number(s.baseRate):Number(s.monthly)/Math.max(1,Number(s.monthlyHours))}
+function moneyFor(r){return getRate()*Number(r.hours)*Number(r.rate)/100}
+function periodFor(month){
+ const [yy,mm]=month.split('-').map(Number), startDay=Number(state.settings.cycleStart||1);
+ if(startDay===1)return {start:`${month}-01`,end:`${month}-${String(new Date(yy,mm,0).getDate()).padStart(2,'0')}`};
+ const startDate=new Date(yy,mm-2,startDay), endDate=new Date(yy,mm-1,startDay-1);
+ const iso=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+ return {start:iso(startDate),end:iso(endDate)};
+}
+function render(){
+const m=$('viewMonth').value||monthNow();const p=periodFor(m);
+$('monthTitle').textContent=m.replace('-','년 ')+'월 급여';
+const rs=state.records.filter(r=>r.date>=p.start&&r.date<=p.end);const sums={overtime:0,special:0,night:0};
+rs.forEach(r=>sums[r.type]=(sums[r.type]||0)+moneyFor(r));
+$('totalPay').textContent=fmt(Number(state.settings.monthly)+sums.overtime+sums.special+sums.night);
+$('basePay').textContent=fmt(state.settings.monthly);$('overPay').textContent=fmt(sums.overtime);$('specialPay').textContent=fmt(sums.special);$('nightPay').textContent=fmt(sums.night);$('recordCount').textContent=rs.length+'건';
+const typeName={overtime:'평일 잔업',special:'특근',night:'야간근무'};
+const htmlFor=list=>list.length?list.slice().sort((a,b)=>b.date.localeCompare(a.date)).map(r=>`<div class="record"><div><strong>${esc(r.date)} <span class="pill">${typeName[r.type]||r.type}</span></strong><div class="meta">${Number(r.hours)}시간 · 가산율 ${Number(r.rate)}%${r.note?' · '+esc(r.note):''}</div></div><div class="amount">${fmt(moneyFor(r))}<small>추가 수당</small><div style="margin-top:7px"><button class="secondary" style="padding:6px 9px;font-size:12px" onclick="editRecord('${r.id}')">수정</button> <button class="danger" style="padding:6px 9px;font-size:12px" onclick="deleteRecord('${r.id}')">삭제</button></div></div></div>`).join(''):'<div class="empty">아직 기록이 없습니다.</div>';
+$('homeRecords').innerHTML=htmlFor(rs);$('allRecords').innerHTML=htmlFor(state.records);
+$('periodHint') && ($('periodHint').textContent=`급여 계산 기간: ${p.start} ~ ${p.end}`);
+renderCalendar(m);
+}
+function renderCalendar(month){
+ const [y,mo]=month.split('-').map(Number), first=new Date(y,mo-1,1), startDow=first.getDay(), days=new Date(y,mo,0).getDate();
+ $('calendarTitle').textContent=`${y}년 ${mo}월 근무 캘린더`;
+ const weekday=['일','월','화','수','목','금','토'];
+ let out=weekday.map(d=>`<div class="weekday">${d}</div>`).join('');
+ const prevDays=new Date(y,mo-1,0).getDate();
+ const cells=Math.ceil((startDow+days)/7)*7;
+ for(let i=0;i<cells;i++){
+   let dateObj, outside=false, day;
+   if(i<startDow){day=prevDays-startDow+i+1;dateObj=new Date(y,mo-2,day);outside=true}
+   else if(i>=startDow+days){day=i-(startDow+days)+1;dateObj=new Date(y,mo,day);outside=true}
+   else {day=i-startDow+1;dateObj=new Date(y,mo-1,day)}
+   const iso=`${dateObj.getFullYear()}-${String(dateObj.getMonth()+1).padStart(2,'0')}-${String(dateObj.getDate()).padStart(2,'0')}`;
+   const entries=state.records.filter(r=>r.date===iso);
+   const types=['overtime','special','night'];
+   const marks=types.map(t=>{const list=entries.filter(r=>r.type===t);return list.length?`<div class="dotline ${t}">${({overtime:'잔업',special:'특근',night:'야간'})[t]} ${list.reduce((a,r)=>a+Number(r.hours),0)}h</div>`:''}).join('');
+   const total=entries.reduce((a,r)=>a+moneyFor(r),0);
+   out+=`<button class="day ${outside?'outside':''} ${iso===selectedDate?'selected':''} ${iso===dateNow()?'today':''}" data-date="${iso}" aria-label="${iso} 근무 기록"><span class="num">${day}</span>${marks}${entries.length?`<span class="sum">${fmt(total)}</span>`:''}</button>`;
+ }
+ $('calendar').innerHTML=out;
+ $('calendar').querySelectorAll('[data-date]').forEach(b=>b.onclick=()=>{selectedDate=b.dataset.date;$('date').value=selectedDate;renderCalendar(month);$('addSelectedDay').textContent=selectedDate+' 근무 추가'});
+}
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function setTab(tab){document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('hidden',x.id!==tab));document.querySelectorAll('[data-tab]').forEach(x=>x.classList.toggle('active',x.dataset.tab===tab));window.scrollTo(0,0)}
+document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>setTab(b.dataset.tab));
+$('viewMonth').value=monthNow();$('date').value=dateNow();
+function setFormDefaults(){const t=$('type').value;const key=t==='overtime'?'defaultOver':t==='special'?'defaultSpecial':'defaultNight';$('rate').value=state.settings[key]}
+$('type').onchange=setFormDefaults;
+function fillSettings(){for(const id of ['monthly','monthlyHours','baseRate','cycleStart','defaultOver','defaultSpecial','defaultNight'])$(id).value=state.settings[id]??(id==='cycleStart'?1:0)}
+fillSettings();setFormDefaults();
+$('recordForm').onsubmit=e=>{e.preventDefault();const r={id:crypto.randomUUID?crypto.randomUUID():String(Date.now()),date:$('date').value,type:$('type').value,hours:Number($('hours').value),rate:Number($('rate').value),note:$('note').value.trim()};if(!r.date||r.hours<=0||r.rate<0)return alert('날짜, 시간, 가산율을 확인해 주세요.');state.records.push(r);save();$('hours').value='';$('note').value='';setTab('home')};
+$('settingsForm').onsubmit=e=>{e.preventDefault();for(const id of ['monthly','monthlyHours','baseRate','cycleStart','defaultOver','defaultSpecial','defaultNight'])state.settings[id]=Number($(id).value)||0;if(state.settings.monthlyHours<=0)return alert('월 환산 기준 시간은 1 이상이어야 합니다.');save();setFormDefaults();alert('급여 설정을 저장했습니다.')};
+$('viewMonth').onchange=render;
+window.editRecord=id=>{const r=state.records.find(x=>x.id===id);if(!r)return;const d=prompt('근무시간을 입력하세요.',r.hours);if(d===null)return;const h=Number(d);if(!(h>0&&h<=24))return alert('0보다 크고 24 이하로 입력해 주세요.');const rate=prompt('가산율(%)을 입력하세요.',r.rate);if(rate===null)return;const v=Number(rate);if(v<0||!Number.isFinite(v))return alert('가산율을 확인해 주세요.');r.hours=h;r.rate=v;const note=prompt('메모를 입력하세요.',r.note||'');if(note!==null)r.note=note;save()};
+window.deleteRecord=id=>{if(confirm('이 기록을 삭제할까요?')){state.records=state.records.filter(r=>r.id!==id);save()}};
+$('exportBtn').onclick=()=>download('payroll-backup-'+dateNow()+'.json',JSON.stringify(state,null,2),'application/json');
+$('csvBtn').onclick=()=>{const rows=[['날짜','근무종류','시간','가산율(%)','추가수당(원)','메모'],...state.records.map(r=>[r.date,({overtime:'평일 잔업',special:'특근',night:'야간근무'})[r.type],r.hours,r.rate,Math.round(moneyFor(r)),r.note||''])];download('payroll-records-'+dateNow()+'.csv','\uFEFF'+rows.map(row=>row.map(x=>'"'+String(x).replace(/"/g,'""')+'"').join(',')).join('\r\n'),'text/csv;charset=utf-8')};
+function download(name,content,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
+$('importFile').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const x=JSON.parse(await f.text());if(!x.settings||!Array.isArray(x.records))throw Error();if(confirm('현재 설정과 기록을 백업 파일 내용으로 교체할까요?')){state=x;save();fillSettings();setFormDefaults();alert('복원했습니다.')}}catch(err){alert('올바른 백업 JSON 파일이 아닙니다.')}e.target.value=''};
+$('clearBtn').onclick=()=>{if(confirm('모든 근무 기록과 설정을 초기화할까요? 이 작업은 되돌릴 수 없습니다.')){state=JSON.parse(JSON.stringify(defaultState));save();fillSettings();setFormDefaults()}};
+$('addSelectedDay').onclick=()=>{if(selectedDate)$('date').value=selectedDate;setTab('add')};
+$('prevMonth').onclick=()=>{const [y,m]=$('viewMonth').value.split('-').map(Number);const d=new Date(y,m-2,1);$('viewMonth').value=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;render()};
+$('nextMonth').onclick=()=>{const [y,m]=$('viewMonth').value.split('-').map(Number);const d=new Date(y,m,1);$('viewMonth').value=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;render()};
+window.addEventListener('online',render);window.addEventListener('offline',render);
+if('serviceWorker' in navigator && location.protocol.startsWith('http'))navigator.serviceWorker.register('./sw.js').catch(()=>{});
+render();
+</script>
+</body></html>
